@@ -1,0 +1,79 @@
+From 8daeed9570af72eb135c8ded460d2888f05b2e68 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Micka=C3=ABl=20Sala=C3=BCn?= <mic@digikod.net>
+Date: Sun, 11 May 2014 22:54:58 +0200
+Subject: [PATCH 626/627] closures: Create temporary file with O_TMPFILE and
+ O_CLOEXEC when available
+
+The open_temp_exec_file_dir function can create a temporary file without
+file system accessible link. If the O_TMPFILE flag is not defined (old
+Linux kernel or libc) the behavior is unchanged.
+
+The open_temp_exec_file_name function now need a new argument "flags"
+(like O_CLOEXEC) used for temporary file creation.
+
+The O_TMPFILE flag allow temporary file creation without race condition.
+This feature/fix prevent another process to access the (future)
+executable file from the file system.
+
+The O_CLOEXEC flag automatically close the temporary file for any
+execve. This avoid transmitting (executable) file descriptor to a child
+process.
+---
+ src/closures.c | 29 ++++++++++++++++++++++++-----
+ 1 file changed, 24 insertions(+), 5 deletions(-)
+
+diff -rup a/src/closures.c b/src/closures.c
+--- a/src/closures.c	2019-06-14 14:24:01.510844835 -0400
++++ b/src/closures.c	2019-06-14 14:26:48.248924350 -0400
+@@ -265,9 +265,9 @@ static size_t execsize = 0;
+ 
+ /* Open a temporary file name, and immediately unlink it.  */
+ static int
+-open_temp_exec_file_name (char *name)
++open_temp_exec_file_name (char *name, int flags)
+ {
+-  int fd = mkstemp (name);
++  int fd = mkostemp (name, flags);
+ 
+   if (fd != -1)
+     unlink (name);
+@@ -280,8 +280,28 @@ static int
+ open_temp_exec_file_dir (const char *dir)
+ {
+   static const char suffix[] = "/ffiXXXXXX";
+-  size_t lendir = strlen (dir);
+-  char *tempname = __builtin_alloca (lendir + sizeof (suffix));
++  size_t lendir;
++  int flags, fd;
++  char *tempname;
++
++#ifdef O_CLOEXEC
++  flags = O_CLOEXEC;
++#else
++  flags = 0;
++#endif
++
++#ifdef O_TMPFILE
++  fd = open (dir, flags | O_RDWR | O_EXCL | O_TMPFILE, 0700);
++  /* If the running system does not support the O_TMPFILE flag then retry without it. */
++  if (fd != -1 || (errno != EINVAL && errno != EISDIR && errno != EOPNOTSUPP)) {
++    return fd;
++  } else {
++    errno = 0;
++  }
++#endif
++
++  lendir = strlen (dir);
++  tempname = __builtin_alloca (lendir + sizeof (suffix));
+ 
+   if (!tempname)
+     return -1;
+@@ -289,7 +309,7 @@ open_temp_exec_file_dir (const char *dir
+   memcpy (tempname, dir, lendir);
+   memcpy (tempname + lendir, suffix, sizeof (suffix));
+ 
+-  return open_temp_exec_file_name (tempname);
++  return open_temp_exec_file_name (tempname, flags);
+ }
+ 
+ /* Open a temporary file in the directory in the named environment

@@ -1,0 +1,13 @@
+diff -rup a/src/closures.c b/src/closures.c
+--- a/src/closures.c	2022-11-16 15:27:45.632725415 -0500
++++ b/src/closures.c	2022-11-18 13:56:17.948172306 -0500
+@@ -140,6 +140,9 @@ selinux_enabled_check (void)
+   char *buf = NULL;
+   size_t len = 0;
+ 
++  if (access ("/etc/sysconfig/libffi-force-shared-memory-check-first", F_OK) >= 0)
++    return 0;
++
+   if (statfs ("/selinux", &sfs) >= 0
+       && (unsigned int) sfs.f_type == 0xf97cff8cU)
+     return 1;
