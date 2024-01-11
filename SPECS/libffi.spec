@@ -4,7 +4,7 @@
 
 Name:		libffi
 Version:	3.4.2
-Release:	7%{?dist}
+Release:	8%{?dist}
 Summary:	A portable foreign function interface library
 License:	MIT
 URL:		http://sourceware.org/libffi
@@ -12,6 +12,7 @@ URL:		http://sourceware.org/libffi
 Source0:	https://github.com/libffi/libffi/releases/download/v3.4.2/libffi-3.4.2.tar.gz
 Source1:	ffi-multilib.h
 Source2:	ffitarget-multilib.h
+Patch1:		libffi-3.4.2-rh2152228.patch
 
 BuildRequires: make
 BuildRequires: gcc
@@ -58,6 +59,7 @@ developing applications that use %{name}.
 
 %prep
 %setup -q
+%patch1 -p1
 
 %build
 # For now we disable the static templates to avoid ghc and
@@ -113,6 +115,10 @@ install -m644 %{SOURCE2} $RPM_BUILD_ROOT%{_includedir}/ffitarget.h
 %{_infodir}/libffi.info.*
 
 %changelog
+* Fri Apr 07 2023 DJ Delorie <dj@redhat.com> - 3.4.2-8
+- Use /etc/sysconfig/libffi-force-shared-memory-check-first to
+  override selinux permissions check for shared memory access (#2152228)
+
 * Thu Aug 26 2021 Carlos O'Donell <codonell@redhat.com> - 3.4.2-7
 - Remove compat-libffi3.1 subpackage to complete SONAME transition.
   Related: rhbz#1891914
