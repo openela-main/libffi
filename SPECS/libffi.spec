@@ -4,7 +4,7 @@
 
 Name:		libffi
 Version:	3.4.4
-Release:	9%{?dist}
+Release:	10%{?dist}
 Summary:	A portable foreign function interface library
 License:	MIT
 URL:		http://sourceware.org/libffi
@@ -69,7 +69,11 @@ developing applications that use %{name}.
 # https://gitlab.haskell.org/ghc/ghc/-/issues/20051
 # https://gitlab.gnome.org/GNOME/gobject-introspection/-/merge_requests/283
 # We need to get these fixes into Fedora before we can reeanble them.
-%configure --disable-static
+#
+# --disable-multi-os-directory is used because otherwise, on riscv64, the
+# library is installed under ${_libdir}/lp64d, which we don't want. Other
+# architectures don't have the same problem so they're unaffected.
+%configure --disable-static --disable-multi-os-directory
 %make_build
 
 %check
@@ -117,6 +121,10 @@ install -m644 %{SOURCE2} $RPM_BUILD_ROOT%{_includedir}/ffitarget.h
 %{_infodir}/libffi.info.*
 
 %changelog
+* Fri Apr 04 2025 Andrea Bolognani <abologna@redhat.com> - 3.4.4-10
+- Fix riscv64 build
+  Resolves: RHEL-86095
+
 * Tue Oct 29 2024 Troy Dawson <tdawson@redhat.com> - 3.4.4-9
 - Bump release for October 2024 mass rebuild:
   Resolves: RHEL-64018
